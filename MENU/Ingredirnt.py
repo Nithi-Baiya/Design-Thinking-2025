@@ -28,7 +28,3 @@ def get_detailed_ingredients(url):
         else:
             # ถ้าแยกไม่ออก ให้ดึงข้อความทั้งหมดในแถวนั้น
             print(f"🔹 {item.get_text(separator=' ', strip=True)}")
-
-# ตัวอย่างการใช้งาน
-url = "https://www.wongnai.com/recipes/ugc/0984814c62254f6786a344933a39e71b"
-get_detailed_ingredients(url)
