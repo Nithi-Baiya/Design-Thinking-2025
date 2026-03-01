@@ -1,33 +1,54 @@
 import requests
 from bs4 import BeautifulSoup
+import time
 
-def get_recipe_detail(url):
+def search_and_get_recipe(ingredient):
+    # 1. ค้นหาเมนูจากวัตถุดิบ (URL Search ของ Wongnai)
+    search_url = f"https://www.wongnai.com/cooking?q={ingredient}"
     headers = {'User-Agent': 'Mozilla/5.0'}
-    response = requests.get(url, headers=headers)
+    
+    print(f"🔍 กำลังค้นหาเมนูที่มี: {ingredient}...")
+    response = requests.get(search_url, headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # 1. ดึงชื่อเมนู
-    title = soup.find('h1').get_text(strip=True) if soup.find('h1') else "ไม่พบชื่อเมนู"
-    print(f"\n🍳 เมนู: {title}")
-    print("="*30)
-
-    # 2. ดึงวัตถุดิบ (Wongnai มักใช้โครงสร้าง list หรือ div เฉพาะ)
-    print("\n🛒 วัตถุดิบที่ต้องใช้:")
-    # หมายเหตุ: Selector อาจต้องปรับตามโครงสร้างหน้าเว็บจริงที่มักเปลี่ยนบ่อย
-    ingredients = soup.find_all('div', class_=lambda x: x and 'Ingredient' in x)
-    if not ingredients:
-        # ลองหาจาก tag พื้นฐานถ้าหา class ไม่เจอ
-        ingredients = soup.select('ul li') 
+    # หาลิงก์เมนูแรกที่เจอ
+    recipe_link = soup.find('a', href=True, class_=lambda x: x and 'styles__Card' in x)
     
-    for item in ingredients:
-        print(f"- {item.get_text(strip=True)}")
+    if not recipe_link:
+        # Fallback กรณีโครงสร้าง Class เปลี่ยน
+        all_links = soup.find_all('a', href=True)
+        for link in all_links:
+            if "/recipes/" in link['href']:
+                recipe_link = link
+                break
 
-    # 3. ดึงขั้นตอนการทำ
-    print("\n👨‍🍳 วิธีทำ:")
-    steps = soup.find_all('div', class_=lambda x: x and 'Step' in x)
-    for i, step in enumerate(steps, 1):
+    if recipe_link:
+        full_url = "https://www.wongnai.com" + recipe_link['href']
+        print(f"✅ พบเมนูแนะนำ! กำลังดึงข้อมูลจาก: {full_url}")
+        time.sleep(1) # พักเบรกเล็กน้อยกันโดนบล็อก
+        display_details(full_url)
+    else:
+        print("❌ ขออภัย ไม่พบเมนูที่ตรงกับวัตถุดิบของคุณ")
+
+def display_details(url):
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    res = requests.get(url, headers=headers)
+    soup = BeautifulSoup(res.content, 'html.parser')
+
+    title = soup.find('h1').text.strip() if soup.find('h1') else "ไม่ระบุชื่อ"
+    print(f"\n--- 🌟 เมนู: {title} 🌟 ---")
+
+    # ดึงวัตถุดิบ (ใช้ Selector กว้างๆ เพื่อความชัวร์)
+    print("\n[ วัตถุดิบทั้งหมด ]")
+    for item in soup.select('div[class*="Ingredient"], ul li'):
+        text = item.get_text(strip=True)
+        if text: print(f"• {text}")
+
+    # ดึงวิธีทำ
+    print("\n[ ขั้นตอนการทำ ]")
+    for i, step in enumerate(soup.select('div[class*="Step"]'), 1):
         print(f"{i}. {step.get_text(strip=True)}")
 
-# ทดสอบรัน (เปลี่ยน URL เป็นเมนูที่คุณสนใจ)
-test_url = "https://www.wongnai.com/recipes/ugc/0984814c62254f6786a344933a39e71b" 
-get_recipe_detail(test_url)
+# ทดสอบใช้งาน
+my_ingredient = input("ใส่วัตถุดิบที่คุณมี (เช่น หมูสามชั้น, ไข่ไก่): ")
+search_and_get_recipe(my_ingredient)
